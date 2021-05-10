@@ -4,8 +4,12 @@
 # Ignore Gradle build output directory
 build
 
+aws-key
+
+# IDE specific files and dirs
 bin
 .vscode
 .settings
 .classpath
 .project
+.idea
