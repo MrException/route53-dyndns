@@ -4,6 +4,8 @@ import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.services.route53.AmazonRoute53;
 import com.amazonaws.services.route53.AmazonRoute53ClientBuilder;
 import com.amazonaws.services.route53.model.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -22,7 +24,7 @@ public class App {
             System.exit(1);
         }
 
-        app.log(String.format("External IP: %s", app.getExternalIp()));
+        app.getExternalIp();
 
         app.buildClient();
 
@@ -31,23 +33,7 @@ public class App {
         app.updateRecord();
     }
 
-    private boolean readEnv() {
-        hostedZone = System.getenv("HOSTED_ZONE");
-        recordName = System.getenv("RECORD_NAME");
-
-        boolean success = true;
-        if (hostedZone == null || hostedZone.isBlank()) {
-            log("HOSTED_ZONE environment variable is required.");
-            success = false;
-        }
-
-        if (recordName == null || recordName.isBlank()) {
-            log("RECORD_NAME environment variable is required.");
-            success = false;
-        }
-
-        return success;
-    }
+    private static final Logger LOG = LoggerFactory.getLogger(App.class);
 
     private AmazonRoute53 client;
     private String ip;
@@ -56,8 +42,27 @@ public class App {
     private String recordName;
 
     // TODO: do these need to be configurable?
-    private long TTL = 60L;
-    private RRType type = RRType.A;
+    private final long TTL = 60L;
+    private final RRType type = RRType.A;
+
+    private boolean readEnv() {
+        hostedZone = System.getenv("HOSTED_ZONE");
+        recordName = System.getenv("RECORD_NAME");
+
+        boolean success = true;
+        if (hostedZone == null || hostedZone.isBlank()) {
+            LOG.error("HOSTED_ZONE environment variable is required.");
+            success = false;
+        }
+
+        if (recordName == null || recordName.isBlank()) {
+            LOG.error("RECORD_NAME environment variable is required.");
+            success = false;
+        }
+
+        return success;
+    }
+
 
     public void buildClient() {
         var credentialsProvider = new EnvironmentVariableCredentialsProvider();
@@ -71,17 +76,18 @@ public class App {
         ListHostedZonesByNameResult listHostedZonesByNameResult = client.listHostedZonesByName();
 
         for (HostedZone hostedZone : listHostedZonesByNameResult.getHostedZones()) {
-            log(String.format("%s -> %s", hostedZone.getId(), hostedZone.getName()));
+            LOG.debug("Found hosted zone {} -> {}", hostedZone.getName(), hostedZone.getId());
         }
     }
 
-    public String getExternalIp() throws Exception {
+    public void getExternalIp() throws Exception {
         URL whatismyip = new URL("https://checkip.amazonaws.com");
         BufferedReader in = null;
         try {
             in = new BufferedReader(new InputStreamReader(whatismyip.openStream()));
             this.ip = in.readLine();
-            return this.ip;
+
+            LOG.info("External IP: {}", ip);
         } finally {
             if (in != null) {
                 try {
@@ -117,10 +123,6 @@ public class App {
 
         ChangeResourceRecordSetsResult result = client.changeResourceRecordSets(request);
 
-        log(result.getChangeInfo().toString());
-    }
-
-    private void log(String msg) {
-        System.out.println(msg);
+        LOG.info(result.getChangeInfo().toString());
     }
 }

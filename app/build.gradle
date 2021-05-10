@@ -10,6 +10,9 @@ repositories {
 dependencies {
     implementation 'com.amazonaws:aws-java-sdk-route53:1.11.1015'
 
+    implementation 'org.slf4j:slf4j-api:1.7.30'
+    implementation 'org.slf4j:slf4j-simple:1.7.30'
+
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
 }
