@@ -21,9 +21,20 @@ public class App {
         app.buildClient();
 
         app.listHostedZones();
+
+        app.updateRecord();
     }
 
     private AmazonRoute53 client;
+    private String ip;
+
+    // TODO: pull these from ENV
+    private String hostedZone = "Z3GAVLTARPYGKC";
+    private String recordName = "test.robmcbride.dev";
+
+    // TODO: do these need to be configurable?
+    private long TTL = 60L;
+    private RRType type = RRType.A;
 
     public void buildClient() {
         var credentialsProvider = new EnvironmentVariableCredentialsProvider();
@@ -46,7 +57,8 @@ public class App {
         BufferedReader in = null;
         try {
             in = new BufferedReader(new InputStreamReader(whatismyip.openStream()));
-            return in.readLine();
+            this.ip = in.readLine();
+            return this.ip;
         } finally {
             if (in != null) {
                 try {
@@ -58,27 +70,27 @@ public class App {
         }
     }
 
-    public void updateRecord(String zoneId, String ip, String domain) {
+    public void updateRecord() {
         ResourceRecord rr = new ResourceRecord(ip);
         List<ResourceRecord> rrList = new ArrayList<>();
         rrList.add(rr);
 
         // Create a ResourceRecordSet
         ResourceRecordSet resourceRecordSet = new ResourceRecordSet();
-        resourceRecordSet.setName(domain);
-        resourceRecordSet.setType(RRType.A);
-        resourceRecordSet.setTTL(300L);
-        resourceRecordSet.setWeight(0L);
+        resourceRecordSet.setName(recordName);
+        resourceRecordSet.setType(type);
+        resourceRecordSet.setTTL(TTL);
         resourceRecordSet.setResourceRecords(rrList);
 
         // Create a change
-        Change change = new Change(ChangeAction.CREATE, resourceRecordSet);
+        Change change = new Change(ChangeAction.UPSERT, resourceRecordSet);
         List<Change> changesList = new ArrayList<>();
         changesList.add(change);
 
         ChangeBatch changeBatch = new ChangeBatch(changesList);
+        changeBatch.setComment("Automatic DNS Update");
 
-        ChangeResourceRecordSetsRequest request = new ChangeResourceRecordSetsRequest(zoneId, changeBatch);
+        ChangeResourceRecordSetsRequest request = new ChangeResourceRecordSetsRequest(hostedZone, changeBatch);
 
         ChangeResourceRecordSetsResult result = client.changeResourceRecordSets(request);
 
