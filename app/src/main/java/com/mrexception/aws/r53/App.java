@@ -16,6 +16,12 @@ public class App {
     public static void main(String[] args) throws Exception {
         var app = new App();
 
+        boolean envSet = app.readEnv();
+
+        if (!envSet) {
+            System.exit(1);
+        }
+
         app.log(String.format("External IP: %s", app.getExternalIp()));
 
         app.buildClient();
@@ -25,12 +31,29 @@ public class App {
         app.updateRecord();
     }
 
+    private boolean readEnv() {
+        hostedZone = System.getenv("HOSTED_ZONE");
+        recordName = System.getenv("RECORD_NAME");
+
+        boolean success = true;
+        if (hostedZone == null || hostedZone.isBlank()) {
+            log("HOSTED_ZONE environment variable is required.");
+            success = false;
+        }
+
+        if (recordName == null || recordName.isBlank()) {
+            log("RECORD_NAME environment variable is required.");
+            success = false;
+        }
+
+        return success;
+    }
+
     private AmazonRoute53 client;
     private String ip;
 
-    // TODO: pull these from ENV
-    private String hostedZone = "Z3GAVLTARPYGKC";
-    private String recordName = "test.robmcbride.dev";
+    private String hostedZone;
+    private String recordName;
 
     // TODO: do these need to be configurable?
     private long TTL = 60L;
