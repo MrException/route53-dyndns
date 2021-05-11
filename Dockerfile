@@ -1,10 +1,10 @@
-FROM openjdk:11 as builder
+FROM adoptopenjdk:11-jdk-hotspot-focal as builder
 
 ADD . /app
 WORKDIR /app
 RUN ./gradlew shadowJar
 
-FROM openjdk:11-jre
+FROM adoptopenjdk:11-jre-hotspot-focal
 
 COPY --from=builder /app/app/build/libs/app-all.jar /app.jar
 
