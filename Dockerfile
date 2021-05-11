@@ -4,7 +4,7 @@ ADD . /app
 WORKDIR /app
 RUN ./gradlew shadowJar
 
-FROM openjdk:11-jre-slim
+FROM openjdk:11-jre
 
 COPY --from=builder /app/app/build/libs/app-all.jar /app.jar
 
