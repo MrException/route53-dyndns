@@ -18,18 +18,10 @@ public class App {
     public static void main(String[] args) throws Exception {
         var app = new App();
 
-        boolean envSet = app.readEnv();
-
-        if (!envSet) {
-            System.exit(1);
-        }
-
+        app.readEnv();
         app.getExternalIp();
-
         app.buildClient();
-
-        app.listHostedZones();
-
+        //app.listHostedZones();
         app.updateRecord();
     }
 
@@ -45,9 +37,15 @@ public class App {
     private final long TTL = 60L;
     private final RRType type = RRType.A;
 
-    private boolean readEnv() {
+    private void readEnv() {
+        LOG.info("Beginning configuration setup.");
+
         hostedZone = System.getenv("HOSTED_ZONE");
         recordName = System.getenv("RECORD_NAME");
+
+        String accessKey = System.getenv("AWS_ACCESS_KEY");
+        String secretKey = System.getenv("AWS_SECRET_ACCESS_KEY");
+        String region = System.getenv("AWS_REGION");
 
         boolean success = true;
         if (hostedZone == null || hostedZone.isBlank()) {
@@ -60,16 +58,39 @@ public class App {
             success = false;
         }
 
-        return success;
+        if (accessKey == null || accessKey.isBlank()) {
+            LOG.error("AWS_ACCESS_KEY environment variable is required.");
+            success = false;
+        }
+
+        if (secretKey == null || secretKey.isBlank()) {
+            LOG.error("AWS_SECRET_ACCESS_KEY environment variable is required.");
+            success = false;
+        }
+
+        if (region == null || region.isBlank()) {
+            LOG.error("AWS_REGION environment variable is required.");
+            success = false;
+        }
+
+        if (!success) {
+            LOG.error("Missing one or more required Environment variables. Exiting.");
+            System.exit(1);
+        }
+
+        LOG.info("Configuration set up.");
     }
 
-
     public void buildClient() {
+        LOG.info("Building AWS client.");
+
         var credentialsProvider = new EnvironmentVariableCredentialsProvider();
 
         client = AmazonRoute53ClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .build();
+
+        LOG.info("AWS Client built.");
     }
 
     private void listHostedZones() {
@@ -81,6 +102,8 @@ public class App {
     }
 
     public void getExternalIp() throws Exception {
+        LOG.info("Finding external IP.");
+
         URL whatismyip = new URL("https://checkip.amazonaws.com");
         BufferedReader in = null;
         try {
@@ -97,9 +120,13 @@ public class App {
                 }
             }
         }
+
+        LOG.info("Found external IP.");
     }
 
     public void updateRecord() {
+        LOG.info("Updating Route53 Record.");
+
         ResourceRecord rr = new ResourceRecord(ip);
         List<ResourceRecord> rrList = new ArrayList<>();
         rrList.add(rr);
@@ -124,5 +151,7 @@ public class App {
         ChangeResourceRecordSetsResult result = client.changeResourceRecordSets(request);
 
         LOG.info(result.getChangeInfo().toString());
+
+        LOG.info("Route53 Record Updated.");
     }
 }
