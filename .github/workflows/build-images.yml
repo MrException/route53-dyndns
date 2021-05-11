@@ -37,4 +37,4 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64,linux/arm
           push: true
-          tags: latest
+          tags: mrexception/route53-dyndns:latest
