@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class App {
     public static void main(String[] args) throws Exception {
@@ -22,7 +23,9 @@ public class App {
         app.getExternalIp();
         app.buildClient();
         //app.listHostedZones();
-        app.updateRecord();
+        if (app.shouldUpdateRecord()) {
+            app.updateRecord();
+        }
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(App.class);
@@ -81,7 +84,7 @@ public class App {
         LOG.info("Configuration set up.");
     }
 
-    public void buildClient() {
+    private void buildClient() {
         LOG.info("Building AWS client.");
 
         var credentialsProvider = new EnvironmentVariableCredentialsProvider();
@@ -101,7 +104,26 @@ public class App {
         }
     }
 
-    public void getExternalIp() throws Exception {
+    private boolean shouldUpdateRecord() {
+        ListResourceRecordSetsRequest request = new ListResourceRecordSetsRequest(hostedZone);
+        ListResourceRecordSetsResult listResourceRecordSetsResult = client.listResourceRecordSets(request);
+
+        boolean ipAddressUnchanged = listResourceRecordSetsResult.getResourceRecordSets()
+                .stream()
+                .filter(resourceRecordSet -> resourceRecordSet.getName().equals(recordName))
+                .flatMap(resourceRecordSet -> resourceRecordSet.getResourceRecords().stream())
+                .map(ResourceRecord::getValue)
+                .anyMatch(recordIp -> recordIp.equals(ip));
+
+        if (ipAddressUnchanged) {
+            LOG.info("HostedZone {} record {} already set to ip {}, will not change", hostedZone, recordName, ip);
+        } else {
+            LOG.info("HostedZone {} record {} needs to be updated, will change", hostedZone, recordName);
+        }
+        return !ipAddressUnchanged;
+    }
+
+    private void getExternalIp() throws Exception {
         LOG.info("Finding external IP.");
 
         URL whatismyip = new URL("https://checkip.amazonaws.com");
@@ -124,7 +146,7 @@ public class App {
         LOG.info("Found external IP.");
     }
 
-    public void updateRecord() {
+    private void updateRecord() {
         LOG.info("Updating Route53 Record.");
 
         ResourceRecord rr = new ResourceRecord(ip);
