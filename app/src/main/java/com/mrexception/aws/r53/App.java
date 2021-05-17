@@ -13,13 +13,13 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 
 public class App {
     public static void main(String[] args) throws Exception {
         var app = new App();
 
         app.readEnv();
+        app.cleanRecordName();
         app.getExternalIp();
         app.buildClient();
         //app.listHostedZones();
@@ -82,6 +82,21 @@ public class App {
         }
 
         LOG.info("Configuration set up.");
+    }
+
+    /**
+     * Cleans up the RECORD_NAME input to be a valid name for Route53.
+     * See:
+     * - https://forums.aws.amazon.com/thread.jspa?threadID=113183
+     * - https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DomainNameFormat.html#domain-name-format-asterisk
+     * - https://docs.aws.amazon.com/Route53/latest/APIReference/API_ListResourceRecordSets.html#API_ListResourceRecordSets_Responses
+     */
+    private void cleanRecordName() {
+        String cleanedRecordName = recordName.replaceAll("\\*", "\\\\052");
+        if(!recordName.equals(cleanedRecordName)) {
+            LOG.debug("RECORD_NAME updated '{}' -> '{}'", recordName, cleanedRecordName);
+            recordName = cleanedRecordName;
+        }
     }
 
     private void buildClient() {
